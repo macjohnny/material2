@@ -283,7 +283,6 @@ export class CdkConnectedOverlay implements OnDestroy, OnChanges {
 
     if (this.minWidth || this.minWidth === 0) {
       overlayConfig.minWidth = this.minWidth;
-      overlayConfig.panelClass = 'cdk-overlay-pane-has-min-width';
     }
 
     if (this.minHeight || this.minHeight === 0) {
