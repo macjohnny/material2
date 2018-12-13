@@ -8,9 +8,7 @@
 
 import {
   animate,
-  animateChild,
   AnimationTriggerMetadata,
-  query,
   state,
   style,
   transition,
@@ -25,20 +23,9 @@ import {
  * @docs-private
  */
 export const matSelectAnimations: {
-  readonly transformPanelWrap: AnimationTriggerMetadata;
   readonly transformPanel: AnimationTriggerMetadata;
   readonly fadeInContent: AnimationTriggerMetadata;
 } = {
-  /**
-   * This animation ensures the select's overlay panel animation (transformPanel) is called when
-   * closing the select.
-   * This is needed due to https://github.com/angular/angular/issues/23302
-   */
-  transformPanelWrap: trigger('transformPanelWrap', [
-      transition('* => void', query('@transformPanel', [animateChild()],
-          {optional: true}))
-  ]),
-
   /**
    * This animation transforms the select's overlay panel on and off the page.
    *

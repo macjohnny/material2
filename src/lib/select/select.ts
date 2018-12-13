@@ -216,7 +216,6 @@ export class MatSelectTrigger {}
     '(blur)': '_onBlur()',
   },
   animations: [
-    matSelectAnimations.transformPanelWrap,
     matSelectAnimations.transformPanel
   ],
   providers: [
