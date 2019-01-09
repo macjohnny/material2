@@ -1644,20 +1644,27 @@ describe('MatAutocomplete', () => {
           .toContain('mat-active', 'Expected first option to be highlighted.');
     }));
 
-    it('should be able to preselect the first option when the floating label is disabled',
+    it('should remove aria-activedescendant when panel is closed with autoActiveFirstOption',
       fakeAsync(() => {
-        fixture.componentInstance.floatLabel = 'never';
-        fixture.componentInstance.trigger.autocomplete.autoActiveFirstOption = true;
-        fixture.detectChanges();
+        const input: HTMLElement = fixture.nativeElement.querySelector('input');
 
+        expect(input.hasAttribute('aria-activedescendant'))
+            .toBe(false, 'Expected no active descendant on init.');
+
+        fixture.componentInstance.trigger.autocomplete.autoActiveFirstOption = true;
         fixture.componentInstance.trigger.openPanel();
         fixture.detectChanges();
         zone.simulateZoneExit();
-        // Note: should not have a detectChanges call here
-        // in order for the test to fail when it's supposed to.
+        fixture.detectChanges();
 
-        expect(overlayContainerElement.querySelectorAll('mat-option')[0].classList)
-            .toContain('mat-active', 'Expected first option to be highlighted.');
+        expect(input.getAttribute('aria-activedescendant'))
+            .toBeTruthy('Expected active descendant while open.');
+
+        fixture.componentInstance.trigger.closePanel();
+        fixture.detectChanges();
+
+        expect(input.hasAttribute('aria-activedescendant'))
+            .toBe(false, 'Expected no active descendant when closed.');
       }));
 
     it('should be able to configure preselecting the first option globally', fakeAsync(() => {

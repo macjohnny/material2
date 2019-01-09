@@ -155,6 +155,12 @@ export class DragRef<T = any> {
    */
   private _rootElement: HTMLElement;
 
+  /**
+   * Inline style value of `-webkit-tap-highlight-color` at the time the
+   * dragging was started. Used to restore the value once we're done dragging.
+   */
+  private _rootElementTapHighlight: string | null;
+
   /** Subscription to pointer movement events. */
   private _pointerMoveSubscription = Subscription.EMPTY;
 
@@ -171,6 +177,9 @@ export class DragRef<T = any> {
   /** Cached reference to the boundary element. */
   private _boundaryElement: HTMLElement | null = null;
 
+  /** Whether the native dragging interactions have been enabled on the root element. */
+  private _nativeInteractionsEnabled = true;
+
   /** Cached dimensions of the preview element. */
   private _previewRect?: ClientRect;
 
@@ -186,9 +195,6 @@ export class DragRef<T = any> {
   /** Elements that can be used to drag the draggable item. */
   private _handles: DragHandle[] = [];
 
-  /** Whether the native interactions on the element are enabled. */
-  private _nativeInteractionsEnabled = true;
-
   /** Axis along which dragging is locked. */
   lockAxis: 'x' | 'y';
 
@@ -197,7 +203,12 @@ export class DragRef<T = any> {
     return this._disabled || !!(this.dropContainer && this.dropContainer.disabled);
   }
   set disabled(value: boolean) {
-    this._disabled = coerceBooleanProperty(value);
+    const newValue = coerceBooleanProperty(value);
+
+    if (newValue !== this._disabled) {
+      this._disabled = newValue;
+      this._toggleNativeDragInteractions();
+    }
   }
   private _disabled = false;
 
@@ -206,6 +217,9 @@ export class DragRef<T = any> {
 
   /** Emits when the user starts dragging the item. */
   started = new Subject<{source: DragRef}>();
+
+  /** Emits when the user has released a drag item, before any animations have started. */
+  released = new Subject<{source: DragRef}>();
 
   /** Emits when the user stops dragging an item in the container. */
   ended = new Subject<{source: DragRef}>();
@@ -349,6 +363,7 @@ export class DragRef<T = any> {
     this._removeSubscriptions();
     this.beforeStarted.complete();
     this.started.complete();
+    this.released.complete();
     this.ended.complete();
     this.entered.complete();
     this.exited.complete();
@@ -495,16 +510,26 @@ export class DragRef<T = any> {
 
   /** Handler that is invoked when the user lifts their pointer up, after initiating a drag. */
   private _pointerUp = (event: MouseEvent | TouchEvent) => {
-    if (!this.isDragging()) {
+    // Note that here we use `isDragging` from the service, rather than from `this`.
+    // The difference is that the one from the service reflects whether a dragging sequence
+    // has been initiated, whereas the one on `this` includes whether the user has passed
+    // the minimum dragging threshold.
+    if (!this._dragDropRegistry.isDragging(this)) {
       return;
     }
 
     this._removeSubscriptions();
     this._dragDropRegistry.stopDragging(this);
 
+    if (this._handles) {
+      this._rootElement.style.webkitTapHighlightColor = this._rootElementTapHighlight;
+    }
+
     if (!this._hasStartedDragging) {
       return;
     }
+
+    this.released.next({source: this});
 
     if (!this.dropContainer) {
       // Convert the active transform into a passive one. This means that next time
@@ -567,6 +592,7 @@ export class DragRef<T = any> {
     const isDragging = this.isDragging();
     const isTouchSequence = isTouchEvent(event);
     const isAuxiliaryMouseButton = !isTouchSequence && (event as MouseEvent).button !== 0;
+    const rootElement = this._rootElement;
     const isSyntheticEvent = !isTouchSequence && this._lastTouchEventTime &&
       this._lastTouchEventTime + MOUSE_EVENT_IGNORE_TIME > Date.now();
 
@@ -589,6 +615,14 @@ export class DragRef<T = any> {
     // we don't want our own transforms to stack on top of each other.
     if (this._initialTransform == null) {
       this._initialTransform = this._rootElement.style.transform || '';
+    }
+
+    // If we've got handles, we need to disable the tap highlight on the entire root element,
+    // otherwise iOS will still add it, even though all the drag interactions on the handle
+    // are disabled.
+    if (this._handles.length) {
+      this._rootElementTapHighlight = rootElement.style.webkitTapHighlightColor;
+      rootElement.style.webkitTapHighlightColor = 'transparent';
     }
 
     this._toggleNativeDragInteractions();
@@ -882,10 +916,12 @@ export class DragRef<T = any> {
 
   /** Toggles the native drag interactions, based on how many handles are registered. */
   private _toggleNativeDragInteractions() {
-    const shouldEnable = this._handles.length > 0;
+    if (!this._rootElement || !this._handles) {
+      return;
+    }
 
-    // We go through the trouble of keeping track of whether the interactions are enabled,
-    // because we want to avoid triggering style recalculations unless we really have to.
+    const shouldEnable = this.disabled || this._handles.length > 0;
+
     if (shouldEnable !== this._nativeInteractionsEnabled) {
       this._nativeInteractionsEnabled = shouldEnable;
       toggleNativeDragInteractions(this._rootElement, shouldEnable);

@@ -59,6 +59,7 @@ import {
 import {MatFormFieldModule} from '@angular/material/form-field';
 import {By} from '@angular/platform-browser';
 import {NoopAnimationsModule} from '@angular/platform-browser/animations';
+import {LiveAnnouncer} from '@angular/cdk/a11y';
 import {Subject, Subscription, EMPTY, Observable} from 'rxjs';
 import {map} from 'rxjs/operators';
 import {MatSelectModule} from './index';
@@ -291,6 +292,8 @@ describe('MatSelect', () => {
           expect(options[1].selected).toBe(true, 'Expected second option to be selected.');
           expect(formControl.value).toBe(options[1].value,
               'Expected value from second option to have been set on the model.');
+
+          flush();
         }));
 
         it('should select first/last options via the HOME/END keys on a closed select',
@@ -314,6 +317,8 @@ describe('MatSelect', () => {
             expect(firstOption.selected).toBe(true, 'Expected first option to be selected.');
             expect(formControl.value).toBe(firstOption.value,
                 'Expected value from first option to have been set on the model.');
+
+            flush();
           }));
 
         it('should resume focus from selected item after selecting via click', fakeAsync(() => {
@@ -336,6 +341,7 @@ describe('MatSelect', () => {
           fixture.detectChanges();
 
           expect(formControl.value).toBe(options[4].value);
+          flush();
         }));
 
         it('should select options via LEFT/RIGHT arrow keys on a closed select', fakeAsync(() => {
@@ -363,7 +369,19 @@ describe('MatSelect', () => {
           expect(options[1].selected).toBe(true, 'Expected second option to be selected.');
           expect(formControl.value).toBe(options[1].value,
               'Expected value from second option to have been set on the model.');
+          flush();
         }));
+
+        it('should announce changes via the keyboard on a closed select',
+          fakeAsync(inject([LiveAnnouncer], (liveAnnouncer: LiveAnnouncer) => {
+          spyOn(liveAnnouncer, 'announce');
+
+          dispatchKeyboardEvent(select, 'keydown', RIGHT_ARROW);
+
+          expect(liveAnnouncer.announce).toHaveBeenCalledWith('Steak');
+
+          flush();
+        })));
 
         it('should open a single-selection select using ALT + DOWN_ARROW', fakeAsync(() => {
           const {control: formControl, select: selectInstance} = fixture.componentInstance;
@@ -395,7 +413,7 @@ describe('MatSelect', () => {
           expect(formControl.value).toBeFalsy('Expected value not to have changed.');
         }));
 
-        it('should should close when pressing ALT + DOWN_ARROW', fakeAsync(() => {
+        it('should close when pressing ALT + DOWN_ARROW', fakeAsync(() => {
           const {select: selectInstance} = fixture.componentInstance;
 
           selectInstance.open();
@@ -412,7 +430,7 @@ describe('MatSelect', () => {
           expect(event.defaultPrevented).toBe(true, 'Expected default action to be prevented.');
         }));
 
-        it('should should close when pressing ALT + UP_ARROW', fakeAsync(() => {
+        it('should close when pressing ALT + UP_ARROW', fakeAsync(() => {
           const {select: selectInstance} = fixture.componentInstance;
 
           selectInstance.open();
@@ -534,6 +552,7 @@ describe('MatSelect', () => {
 
               expect(formControl.value).toBe('pasta-6');
               expect(fixture.componentInstance.options.toArray()[6].selected).toBe(true);
+              flush();
             }));
 
         it('should not shift focus when the selected options are updated programmatically ' +
@@ -583,6 +602,8 @@ describe('MatSelect', () => {
           dispatchKeyboardEvent(select, 'keydown', DOWN_ARROW);
 
           expect(lastOption.selected).toBe(true, 'Expected last option to stay selected.');
+
+          flush();
         }));
 
         it('should not open a multiple select when tabbing through', fakeAsync(() => {
@@ -694,6 +715,7 @@ describe('MatSelect', () => {
           expect(spy).toHaveBeenCalledWith(true);
 
           subscription.unsubscribe();
+          flush();
         }));
 
         it('should be able to focus the select trigger', fakeAsync(() => {
@@ -1921,6 +1943,8 @@ describe('MatSelect', () => {
       dispatchKeyboardEvent(select, 'keydown', DOWN_ARROW);
 
       expect(fixture.componentInstance.changeListener).toHaveBeenCalledTimes(1);
+
+      flush();
     }));
   });
 
@@ -2452,6 +2476,22 @@ describe('MatSelect', () => {
       expect(component.select.errorState).toBe(true);
       expect(errorStateMatcher.isErrorState).toHaveBeenCalled();
     }));
+
+    it('should notify that the state changed when the options have changed', fakeAsync(() => {
+      testComponent.formControl.setValue('pizza-1');
+      fixture.detectChanges();
+
+      const spy = jasmine.createSpy('stateChanges spy');
+      const subscription = testComponent.select.stateChanges.subscribe(spy);
+
+      testComponent.options = [];
+      fixture.detectChanges();
+      tick();
+
+      expect(spy).toHaveBeenCalled();
+      subscription.unsubscribe();
+    }));
+
   });
 
   describe('with custom error behavior', () => {
@@ -4640,8 +4680,9 @@ class InvalidSelectInForm {
     <form [formGroup]="formGroup">
       <mat-form-field>
         <mat-select placeholder="Food" formControlName="food">
-          <mat-option value="steak-0">Steak</mat-option>
-          <mat-option value="pizza-1">Pizza</mat-option>
+          <mat-option *ngFor="let option of options" [value]="option.value">
+            {{option.viewValue}}
+          </mat-option>
         </mat-select>
 
         <mat-error>This field is required</mat-error>
@@ -4652,6 +4693,10 @@ class InvalidSelectInForm {
 class SelectInsideFormGroup {
   @ViewChild(FormGroupDirective) formGroupDirective: FormGroupDirective;
   @ViewChild(MatSelect) select: MatSelect;
+  options = [
+    {value: 'steak-0', viewValue: 'Steak'},
+    {value: 'pizza-1', viewValue: 'Pizza'},
+  ];
   formControl = new FormControl('', Validators.required);
   formGroup = new FormGroup({
     food: this.formControl

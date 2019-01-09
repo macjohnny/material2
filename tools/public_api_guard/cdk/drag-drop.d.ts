@@ -6,7 +6,7 @@ export declare const CDK_DROP_LIST: InjectionToken<CdkDropListContainer<any>>;
 
 export declare const CDK_DROP_LIST_CONTAINER: InjectionToken<CdkDropListContainer<any>>;
 
-export declare class CdkDrag<T = any> implements AfterViewInit, OnDestroy {
+export declare class CdkDrag<T = any> implements AfterViewInit, OnChanges, OnDestroy {
     _dragRef: DragRef<CdkDrag<T>>;
     _handles: QueryList<CdkDragHandle>;
     _placeholderTemplate: CdkDragPlaceholder;
@@ -22,6 +22,7 @@ export declare class CdkDrag<T = any> implements AfterViewInit, OnDestroy {
     exited: EventEmitter<CdkDragExit<any>>;
     lockAxis: 'x' | 'y';
     moved: Observable<CdkDragMove<T>>;
+    released: EventEmitter<CdkDragRelease>;
     rootElementSelector: string;
     started: EventEmitter<CdkDragStart>;
     constructor(
@@ -30,6 +31,7 @@ export declare class CdkDrag<T = any> implements AfterViewInit, OnDestroy {
     getPlaceholderElement(): HTMLElement;
     getRootElement(): HTMLElement;
     ngAfterViewInit(): void;
+    ngOnChanges(changes: SimpleChanges): void;
     ngOnDestroy(): void;
     reset(): void;
 }
@@ -90,6 +92,10 @@ export declare class CdkDragPreview<T = any> {
     data: T;
     templateRef: TemplateRef<T>;
     constructor(templateRef: TemplateRef<T>);
+}
+
+export interface CdkDragRelease<T = any> {
+    source: CdkDrag<T>;
 }
 
 export interface CdkDragSortEvent<T = any, I = T> {
