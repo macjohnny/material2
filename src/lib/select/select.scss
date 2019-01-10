@@ -90,7 +90,7 @@ $mat-select-placeholder-arrow-space: 2 * ($mat-select-arrow-size + $mat-select-a
   max-height: $mat-select-panel-max-height;
   min-width: 100%; // prevents some animation twitching and test inconsistencies in IE11
   border-radius: 4px;
-  flex: 1 0 auto; // Prevents width-issues of mat-select-panel with width: calc(100% + 32px)
+  flex: 1 0 auto; // Prevents width-issues of mat-select-panel with width: calc(100% + 32px) in IE11
 
   @include cdk-high-contrast {
     outline: solid 1px;
