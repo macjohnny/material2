@@ -311,7 +311,14 @@ export class MatInput extends _MatInputMixinBase implements MatFormFieldControl<
 
   /** Focuses the input. */
   focus(): void {
+    // fix IE11 not able to focus programatically with css style -ms-user-select: none
+    // see https://github.com/angular/material2/issues/15093
+    this._elementRef.nativeElement.style['-ms-user-select'] = 'auto';
+
     this._elementRef.nativeElement.focus();
+
+    // reset IE11 fix css style
+    this._elementRef.nativeElement.style['-ms-user-select'] = '';
   }
 
   /** Callback for the cases where the focused state of the input changes. */
